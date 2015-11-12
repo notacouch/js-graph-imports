@@ -1,11 +1,11 @@
 {
-  "name": "sass-graph",
-  "version": "2.0.1",
-  "description": "Parse sass files and extract a graph of imports",
+  "name": "js-graph",
+  "version": "1.0.0",
+  "description": "Parse js files and extract a graph of imports",
   "license": "MIT",
-  "repository": "xzyfer/sass-graph",
-  "author": "xzyfer",
-  "main": "sass-graph.js",
+  "repository": "brnmonteiro/js-graph",
+  "author": "brnmonteiro",
+  "main": "js-graph.js",
   "directories": {
     "bin": "./bin"
   },
@@ -13,7 +13,7 @@
     "test": "mocha ./test/test*.js"
   },
   "keywords": [
-    "sass",
+    "js",
     "graph"
   ],
   "dependencies": {
