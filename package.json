@@ -1,11 +1,11 @@
 {
-  "name": "js-graph",
+  "name": "js-graph-imports",
   "version": "1.0.0",
   "description": "Parse js files and extract a graph of imports",
   "license": "MIT",
-  "repository": "brnmonteiro/js-graph",
+  "repository": "brnmonteiro/js-graph-imports",
   "author": "brnmonteiro",
-  "main": "js-graph.js",
+  "main": "index.js",
   "directories": {
     "bin": "./bin"
   },
