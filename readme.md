@@ -9,3 +9,5 @@ Build a Js Graph of dependencies of files using:
 ```
 //import("foo.js");
 ```
+
+Works with nested imports, and js _partials!
