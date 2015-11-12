@@ -1,4 +1,4 @@
-# Js Graph
+# Js Graph Imports
 
 Base on:
 - [sass-graph](https://github.com/xzyfer/sass-graph)
