@@ -1,6 +1,6 @@
 {
   "name": "js-graph-imports",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Parse js files and extract a graph of imports",
   "license": "MIT",
   "repository": "brnmonteiro/js-graph-imports",
