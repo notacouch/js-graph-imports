@@ -1,3 +1,11 @@
 # Js Graph
 
-Base on [sass-graph](https://github.com/xzyfer/sass-graph)
+Base on:
+- [sass-graph](https://github.com/xzyfer/sass-graph)
+- [gulp-imports](https://github.com/ifandelse/gulp-imports)
+
+Build a Js Graph of dependencies of files using:
+
+```
+//import("foo.js");
+```
