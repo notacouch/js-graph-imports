@@ -7,15 +7,13 @@ var files = {
   'a.js': path.join(fixtures, 'a.js'),
   'b.js': path.join(fixtures, 'b.js'),
   '_c.js': path.join(fixtures, '_c.js'),
-  'd.js': path.join(fixtures, 'components/d.js'),
-  '_e.js': path.join(fixtures, 'nested/_e.js')
 }
 
 describe('js-graph', function(){
   var jsGraph = require('../js-graph');
 
   describe('parsing a graph of all js files', function(){
-    var graph = jsGraph.parseDir(fixtures, {loadPaths: [fixtures + '/components']});
+    var graph = jsGraph.parseDir(fixtures, {loadPaths: [fixtures]});
 
     it('should have all files', function(){
       assert.equal(Object.keys(files).length, Object.keys(graph.index).length);
