@@ -58,25 +58,35 @@ function Graph(options, dir) {
 // add a js file to the graph
 Graph.prototype.addFile = function(filepath, parent) {
   var entry = this.index[filepath] = this.index[filepath] || {
+    prepends: [],
     imports: [],
+    appends: [],
     importedBy: [],
     modified: fs.statSync(filepath).mtime
   };
 
   var resolvedParent;
-  var imports = parseImports(fs.readFileSync(filepath, 'utf-8'));
+  var all_imports = parseImports(fs.readFileSync(filepath, 'utf-8'));
+  var imports = all_imports.imports;
   var cwd = path.dirname(filepath);
 
-  var i, length = imports.length, loadPaths, resolved;
+  var i, length = imports.length, loadPaths = _([cwd, this.dir]).concat(this.loadPaths).filter().uniq().value(), resolved;
   for (i = 0; i < length; i++) {
-    loadPaths = _([cwd, this.dir]).concat(this.loadPaths).filter().uniq().value();
     //[this.dir, cwd].forEach(function (path) {
     //  if (path && this.loadPaths.indexOf(path) === -1) {
     //    this.loadPaths.push(path);
     //  }
     //}.bind(this));
-    resolved = resolveJsPath(imports[i], _.uniq(this.loadPaths), this.extensions);
+    resolved = resolveJsPath(imports[i], loadPaths, this.extensions);
     if (!resolved) continue;
+
+    // Codekit support
+    if (_.indexOf(all_imports.prepends, imports[i]) > -1) {
+        entry.prepends.push(resolved);
+    }
+    if (_.indexOf(all_imports.appends, imports[i]) > -1) {
+        entry.appends.push(resolved);
+    }
 
     // recurse into dependencies if not already enumerated
     if (!_.includes(entry.imports, resolved)) {
