@@ -7,30 +7,31 @@ var glob = require('glob');
 var parseImports = require('./parse-imports');
 
 // resolve a js module to a path
-function resolveJsPath(jsPath, loadPaths) {
+function resolveJsPath(jsPath, loadPaths, extensions) {
   // trim js file extensions
-  var jsPathName = jsPath.replace(/\.(js)$/, '');
+  var re = new RegExp('(\.('+extensions.join('|')+'))$', 'i');
+  var jsPathName = jsPath.replace(re, '');
   // check all load paths
-  var i, length = loadPaths.length, extensions = [".js"];
-  for(i = 0; i < length; i++) {
-    var scssPath;
-
-    for (var j = 0; j < extensions.length; j++) {
-      scssPath = path.normalize(loadPaths[i] + "/" + jsPathName + extensions[j]);
-      if (fs.existsSync(scssPath)) {
-        return scssPath;
-      }
+  var i, j, length = loadPaths.length, scssPath, partialPath;
+  for (i = 0; i < length; i++) {
+    for (j = 0; j < extensions.length; j++) {
+      scssPath = path.normalize(loadPaths[i] + '/' + jsPathName + '.' + extensions[j]);
+      try {
+        if (fs.lstatSync(scssPath).isFile()) {
+          return scssPath;
+        }
+      } catch (e) {}
     }
 
-    var partialPath;
-
     // special case for _partials
-    for (var j = 0; j < extensions.length; j++) {
-      scssPath = path.normalize(loadPaths[i] + "/" + jsPathName + extensions[j]);
-      partialPath = path.join(path.dirname(scssPath), "_" + path.basename(scssPath));
-      if (fs.existsSync(partialPath)) {
-        return partialPath;
-      }
+    for (j = 0; j < extensions.length; j++) {
+      scssPath = path.normalize(loadPaths[i] + '/' + jsPathName + '.' + extensions[j]);
+      partialPath = path.join(path.dirname(scssPath), '_' + path.basename(scssPath));
+      try {
+        if (fs.lstatSync(partialPath).isFile()) {
+          return partialPath;
+        }
+      } catch (e) {}
     }
   }
 
@@ -38,14 +39,17 @@ function resolveJsPath(jsPath, loadPaths) {
   return false
 }
 
-function Graph(loadPaths, dir) {
+function Graph(options, dir) {
   this.dir = dir;
-  this.loadPaths = loadPaths;
+  this.extensions = options.extensions || [];
   this.index = {};
+  this.loadPaths = _(options.loadPaths).map(function(p) {
+    return path.resolve(p);
+  }).value();
 
   if(dir) {
     var graph = this;
-    _(glob.sync(dir+"/**/*.js", {})).forEach(function(file) {
+    _.each(glob.sync(dir+'/**/*.@('+this.extensions.join('|')+')', { dot: true, nodir: true }), function(file) {
       graph.addFile(path.resolve(file));
     });
   }
@@ -63,25 +67,26 @@ Graph.prototype.addFile = function(filepath, parent) {
   var imports = parseImports(fs.readFileSync(filepath, 'utf-8'));
   var cwd = path.dirname(filepath);
 
-  var i, length = imports.length;
+  var i, length = imports.length, loadPaths, resolved;
   for (i = 0; i < length; i++) {
-    [this.dir, cwd].forEach(function (path) {
-      if (path && this.loadPaths.indexOf(path) === -1) {
-        this.loadPaths.push(path);
-      }
-    }.bind(this));
-    var resolved = resolveJsPath(imports[i], _.uniq(this.loadPaths));
+    loadPaths = _([cwd, this.dir]).concat(this.loadPaths).filter().uniq().value();
+    //[this.dir, cwd].forEach(function (path) {
+    //  if (path && this.loadPaths.indexOf(path) === -1) {
+    //    this.loadPaths.push(path);
+    //  }
+    //}.bind(this));
+    resolved = resolveJsPath(imports[i], _.uniq(this.loadPaths), this.extensions);
     if (!resolved) continue;
 
     // recurse into dependencies if not already enumerated
-    if(!_.contains(entry.imports, resolved)) {
+    if (!_.includes(entry.imports, resolved)) {
       entry.imports.push(resolved);
       this.addFile(fs.realpathSync(resolved), filepath);
     }
   }
 
   // add link back to parent
-  if(parent) {
+  if (parent) {
     resolvedParent = _.find(this.loadPaths, function(path) {
       return parent.indexOf(path) !== -1;
     });
@@ -116,14 +121,14 @@ Graph.prototype.visitDescendents = function(filepath, callback) {
 Graph.prototype.visit = function(filepath, callback, edgeCallback, visited) {
   filepath = fs.realpathSync(filepath);
   var visited = visited || [];
-  if(!this.index.hasOwnProperty(filepath)) {
-    edgeCallback("Graph doesn't contain " + filepath, null);
+  if (!this.index.hasOwnProperty(filepath)) {
+    edgeCallback('Graph doesn\'t contain ' + filepath, null);
   }
   var edges = edgeCallback(null, this.index[filepath]);
 
   var i, length = edges.length;
   for (i = 0; i < length; i++) {
-    if(!_.contains(visited, edges[i])) {
+    if (!_.includes(visited, edges[i])) {
       visited.push(edges[i]);
       callback(edges[i], this.index[edges[i]]);
       this.visit(edges[i], callback, edgeCallback, visited);
@@ -132,22 +137,29 @@ Graph.prototype.visit = function(filepath, callback, edgeCallback, visited) {
 };
 
 function processOptions(options) {
-  options = options || {};
-  if(!options.hasOwnProperty('loadPaths')) options['loadPaths'] = [];
-  return options;
+  return _.assign({
+    loadPaths: [process.cwd()],
+    extensions: ['js'],
+  }, options);
 }
 
 module.exports.parseFile = function(filepath, options) {
-  var filepath = path.resolve(filepath);
-  var options = processOptions(options);
-  var graph = new Graph(options.loadPaths);
-  graph.addFile(filepath);
-  return graph;
+  if (fs.lstatSync(filepath).isFile()) {
+    var filepath = path.resolve(filepath);
+    var options = processOptions(options);
+    var graph = new Graph(options);
+    graph.addFile(filepath);
+    return graph;
+  }
+  // throws
 };
 
 module.exports.parseDir = function(dirpath, options) {
-  var dirpath = path.resolve(dirpath);
-  var options = processOptions(options);
-  var graph = new Graph(options.loadPaths, dirpath);
-  return graph;
+  if (fs.lstatSync(dirpath).isDirectory()) {
+    var dirpath = path.resolve(dirpath);
+    var options = processOptions(options);
+    var graph = new Graph(options, dirpath);
+    return graph;
+  }
+  // throws
 };
